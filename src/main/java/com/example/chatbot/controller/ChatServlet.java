@@ -52,7 +52,7 @@ public class ChatServlet extends HttpServlet {
         }
         if (text != null && !text.isBlank()) {
             messages.add(new Message("user", text));
-            messages.add(new Message(selectedModel, generateAnswer(selectedModel, text)));
+            messages.add(new Message(selectedModel, generateAnswer(selectedModel, messages)));
         }
 
         // 새로고침 시 같은 POST가 반복되지 않도록 GET /chat으로 되돌린다.
@@ -81,9 +81,9 @@ public class ChatServlet extends HttpServlet {
         return AIService.DEFAULT_MODEL;
     }
 
-    private String generateAnswer(String model, String text) {
+    private String generateAnswer(String model, List<Message> messages) {
         try {
-            return aiService.answer(model, text);
+            return aiService.answer(model, messages);
         } catch (Exception e) {
             return "AI 응답 생성 중 오류가 발생했습니다. " + e.getMessage();
         }

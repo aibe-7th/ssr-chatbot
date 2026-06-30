@@ -1,5 +1,6 @@
 package com.example.chatbot.service;
 
+import com.example.chatbot.model.Message;
 import com.google.genai.Client;
 import com.google.genai.types.Content;
 import com.google.genai.types.GenerateContentResponse;
@@ -8,15 +9,11 @@ import com.google.genai.types.Part;
 import com.google.genai.types.ThinkingConfig;
 import com.google.genai.types.ThinkingLevel;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
 // Google GenAI SDK 호출을 담당하는 서비스이다.
-// API 키는 환경변수를 우선 사용하고, 없으면 프로젝트의 .env 파일에서 읽는다.
+// API 키는 실행 환경의 GEMINI_API_KEY 환경변수에서 읽는다.
 public class AIService {
     public static final List<String> ALLOWED_MODELS = List.of(
             "gemma-4-26b-a4b-it",
@@ -28,15 +25,16 @@ public class AIService {
     private static final String API_KEY_NAME = "GEMINI_API_KEY";
     private static final String API_KEY_PLACEHOLDER = "your_api_key_here";
     private static final int MAX_OUTPUT_TOKENS = 512;
+    private static final int MAX_HISTORY_MESSAGES = 10;
     private static final String SYSTEM_INSTRUCTION = "답변은 핵심만 간결하게 작성한다. 필요한 경우 짧은 목록을 사용하되 전체 답변은 너무 길어지지 않게 제한한다.";
 
-    public String answer(String model, String prompt) throws IOException {
+    public String answer(String model, List<Message> messages) {
         String selectedModel = normalizeModel(model);
         String apiKey = readApiKey()
-                .orElseThrow(() -> new IllegalStateException(API_KEY_NAME + "가 설정되지 않았습니다. .env 또는 환경변수에 API 키를 입력하세요."));
+                .orElseThrow(() -> new IllegalStateException(API_KEY_NAME + " 환경변수를 설정하세요."));
 
         try (Client client = Client.builder().apiKey(apiKey).build()) {
-            GenerateContentResponse response = client.models.generateContent(selectedModel, prompt, generationConfig());
+            GenerateContentResponse response = client.models.generateContent(selectedModel, recentContents(messages), generationConfig());
             String text = response.text();
             if (text == null || text.isBlank()) {
                 return "응답 내용이 비어 있습니다.";
@@ -65,60 +63,36 @@ public class AIService {
                 .build();
     }
 
-    private Optional<String> readApiKey() throws IOException {
+    private List<Content> recentContents(List<Message> messages) {
+        int fromIndex = Math.max(0, messages.size() - MAX_HISTORY_MESSAGES);
+        List<Message> recentMessages = messages.subList(fromIndex, messages.size());
+        if (!recentMessages.isEmpty() && !"user".equals(recentMessages.get(0).role())) {
+            recentMessages = recentMessages.subList(1, recentMessages.size());
+        }
+
+        return recentMessages.stream()
+                .map(this::toContent)
+                .toList();
+    }
+
+    private Content toContent(Message message) {
+        return Content.builder()
+                .role(toGenAiRole(message.role()))
+                .parts(Part.builder().text(message.text()).build())
+                .build();
+    }
+
+    private String toGenAiRole(String role) {
+        if ("user".equals(role)) {
+            return "user";
+        }
+        return "model";
+    }
+
+    private Optional<String> readApiKey() {
         String envValue = System.getenv(API_KEY_NAME);
         if (hasApiKey(envValue)) {
             return Optional.of(envValue.trim());
-        }
-
-        Optional<Path> envPath = findDotEnv();
-        if (envPath.isEmpty()) {
-            return Optional.empty();
-        }
-
-        for (String line : Files.readAllLines(envPath.get())) {
-            String trimmed = line.trim();
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) {
-                continue;
-            }
-
-            int separatorIndex = trimmed.indexOf('=');
-            if (separatorIndex <= 0) {
-                continue;
-            }
-
-            String key = trimmed.substring(0, separatorIndex).trim();
-            String value = trimmed.substring(separatorIndex + 1).trim();
-            if (API_KEY_NAME.equals(key) && hasApiKey(value)) {
-                return Optional.of(stripQuotes(value));
-            }
-        }
-
-        return Optional.empty();
-    }
-
-    private Optional<Path> findDotEnv() {
-        Optional<Path> fromWorkingDirectory = findDotEnvFrom(Path.of(System.getProperty("user.dir")));
-        if (fromWorkingDirectory.isPresent()) {
-            return fromWorkingDirectory;
-        }
-
-        try {
-            Path classpath = Path.of(AIService.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-            return findDotEnvFrom(classpath);
-        } catch (URISyntaxException | IllegalArgumentException e) {
-            return Optional.empty();
-        }
-    }
-
-    private Optional<Path> findDotEnvFrom(Path start) {
-        Path current = Files.isRegularFile(start) ? start.getParent() : start;
-        while (current != null) {
-            Path candidate = current.resolve(".env");
-            if (Files.isRegularFile(candidate)) {
-                return Optional.of(candidate);
-            }
-            current = current.getParent();
         }
         return Optional.empty();
     }

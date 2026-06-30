@@ -44,6 +44,11 @@
 </div>
 <script>
     const chatForm = document.getElementById('chatForm');
+    const messages = document.querySelector('.messages');
+
+    function scrollMessagesToBottom() {
+        messages.scrollTop = messages.scrollHeight;
+    }
 
     chatForm.addEventListener('submit', () => {
         requestAnimationFrame(() => {
@@ -67,7 +72,11 @@
             const markdown = element.textContent;
             element.innerHTML = DOMPurify.sanitize(marked.parse(markdown));
         });
+
+        scrollMessagesToBottom();
     });
+
+    window.addEventListener('load', scrollMessagesToBottom);
 </script>
 </body>
 </html>
