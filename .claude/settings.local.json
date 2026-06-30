@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jar tf *)",
+      "Bash(grep -E \"^com/google/genai/[A-Z][^/]+\\\\.class$\")",
+      "Read(//private/tmp/**)",
+      "Bash(javap -cp /Users/morgan/.m2/repository/com/google/genai/google-genai/1.60.0/google-genai-1.60.0.jar com.google.genai.Client)",
+      "Bash(javap -cp /Users/morgan/.m2/repository/com/google/genai/google-genai/1.60.0/google-genai-1.60.0.jar com.google.genai.Models)",
+      "Bash(javap -cp /Users/morgan/.m2/repository/com/google/genai/google-genai/1.60.0/google-genai-1.60.0.jar com.google.genai.Client.Builder)",
+      "Bash(javap -cp /Users/morgan/.m2/repository/com/google/genai/google-genai/1.60.0/google-genai-1.60.0.jar com.google.genai.types.GenerateContentResponse)",
+      "Bash(javap -cp /Users/morgan/.m2/repository/com/google/genai/google-genai/1.60.0/google-genai-1.60.0.jar com.google.genai.types.Content)",
+      "mcp__codex-cli__codex",
+      "Bash(./mvnw *)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(grep -E \"\\\\.class$\")"
+    ]
+  }
+}
