@@ -10,7 +10,6 @@ import com.google.genai.types.ThinkingConfig;
 import com.google.genai.types.ThinkingLevel;
 
 import java.util.List;
-import java.util.Optional;
 
 // Google GenAI SDK 호출을 담당하는 서비스이다.
 // API 키는 실행 환경의 GEMINI_API_KEY 환경변수에서 읽는다.
@@ -23,15 +22,13 @@ public class AIService {
     public static final String DEFAULT_MODEL = ALLOWED_MODELS.get(0);
 
     private static final String API_KEY_NAME = "GEMINI_API_KEY";
-    private static final String API_KEY_PLACEHOLDER = "your_api_key_here";
     private static final int MAX_OUTPUT_TOKENS = 512;
     private static final int MAX_HISTORY_MESSAGES = 10;
     private static final String SYSTEM_INSTRUCTION = "답변은 핵심만 간결하게 작성한다. 필요한 경우 짧은 목록을 사용하되 전체 답변은 너무 길어지지 않게 제한한다.";
 
     public String answer(String model, List<Message> messages) {
         String selectedModel = normalizeModel(model);
-        String apiKey = readApiKey()
-                .orElseThrow(() -> new IllegalStateException(API_KEY_NAME + " 환경변수를 설정하세요."));
+        String apiKey = readApiKey();
 
         try (Client client = Client.builder().apiKey(apiKey).build()) {
             GenerateContentResponse response = client.models.generateContent(selectedModel, recentContents(messages), generationConfig());
@@ -76,43 +73,18 @@ public class AIService {
     }
 
     private Content toContent(Message message) {
+        String role = "user".equals(message.role()) ? "user" : "model";
         return Content.builder()
-                .role(toGenAiRole(message.role()))
+                .role(role)
                 .parts(Part.builder().text(message.text()).build())
                 .build();
     }
 
-    private String toGenAiRole(String role) {
-        if ("user".equals(role)) {
-            return "user";
-        }
-        return "model";
-    }
-
-    private Optional<String> readApiKey() {
+    private String readApiKey() {
         String envValue = System.getenv(API_KEY_NAME);
-        if (hasApiKey(envValue)) {
-            return Optional.of(envValue.trim());
+        if (envValue == null || envValue.isBlank()) {
+            throw new IllegalStateException(API_KEY_NAME + " 환경변수를 설정하세요.");
         }
-        return Optional.empty();
-    }
-
-    private boolean hasApiKey(String value) {
-        if (value == null) {
-            return false;
-        }
-        String normalized = stripQuotes(value.trim());
-        return !normalized.isBlank() && !API_KEY_PLACEHOLDER.equals(normalized);
-    }
-
-    private String stripQuotes(String value) {
-        if (value.length() >= 2) {
-            char first = value.charAt(0);
-            char last = value.charAt(value.length() - 1);
-            if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
-                return value.substring(1, value.length() - 1);
-            }
-        }
-        return value;
+        return envValue.trim();
     }
 }
