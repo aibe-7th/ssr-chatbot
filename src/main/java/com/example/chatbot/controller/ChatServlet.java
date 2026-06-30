@@ -1,6 +1,7 @@
 package com.example.chatbot.controller;
 
 import com.example.chatbot.model.Message;
+import com.example.chatbot.service.AIService;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -19,6 +20,9 @@ import java.util.List;
 public class ChatServlet extends HttpServlet {
     // 세션과 request attribute에서 공통으로 사용할 메시지 목록 이름이다.
     private static final String MESSAGES_KEY = "messages";
+    private static final String SELECTED_MODEL_KEY = "selectedModel";
+
+    private final AIService aiService = new AIService();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -26,6 +30,8 @@ public class ChatServlet extends HttpServlet {
         HttpSession session = request.getSession();
         List<Message> messages = getMessages(session);
         request.setAttribute(MESSAGES_KEY, messages);
+        request.setAttribute("availableModels", AIService.ALLOWED_MODELS);
+        request.setAttribute(SELECTED_MODEL_KEY, getSelectedModel(session));
 
         RequestDispatcher dispatcher = request.getRequestDispatcher("/WEB-INF/views/chat.jsp");
         dispatcher.forward(request, response);
@@ -33,9 +39,12 @@ public class ChatServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        // 사용자가 보낸 메시지를 세션 내역에 추가하고 간단한 봇 응답을 붙인다.
+        // 사용자가 보낸 메시지를 세션 내역에 추가하고 선택한 모델로 답변을 생성한다.
+        request.setCharacterEncoding("UTF-8");
         HttpSession session = request.getSession();
         List<Message> messages = getMessages(session);
+        String selectedModel = aiService.normalizeModel(request.getParameter("model"));
+        session.setAttribute(SELECTED_MODEL_KEY, selectedModel);
 
         String text = request.getParameter("message");
         if (text != null) {
@@ -43,7 +52,7 @@ public class ChatServlet extends HttpServlet {
         }
         if (text != null && !text.isBlank()) {
             messages.add(new Message("user", text));
-            messages.add(new Message("model", "알겠습니다"));
+            messages.add(new Message(selectedModel, generateAnswer(selectedModel, text)));
         }
 
         // 새로고침 시 같은 POST가 반복되지 않도록 GET /chat으로 되돌린다.
@@ -62,5 +71,21 @@ public class ChatServlet extends HttpServlet {
         List<Message> messages = new ArrayList<>();
         session.setAttribute(MESSAGES_KEY, messages);
         return messages;
+    }
+
+    private String getSelectedModel(HttpSession session) {
+        Object value = session.getAttribute(SELECTED_MODEL_KEY);
+        if (value instanceof String model) {
+            return aiService.normalizeModel(model);
+        }
+        return AIService.DEFAULT_MODEL;
+    }
+
+    private String generateAnswer(String model, String text) {
+        try {
+            return aiService.answer(model, text);
+        } catch (Exception e) {
+            return "AI 응답 생성 중 오류가 발생했습니다. " + e.getMessage();
+        }
     }
 }

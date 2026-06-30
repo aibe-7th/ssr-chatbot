@@ -8,6 +8,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.6/dist/purify.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js" defer></script>
 </head>
 <body>
 <div class="chat">
@@ -17,16 +19,55 @@
             <%-- 사용자 메시지는 me, 모델 메시지는 bot 클래스를 붙여 CSS에서 다르게 보이게 한다. --%>
             <div class="message ${msg.role eq 'user' ? 'me' : 'bot'}">
                 <p class="role"><c:out value="${msg.role}"/></p>
-                <p class="text"><c:out value="${msg.text}"/></p>
+                <p class="text markdown"><c:out value="${msg.text}"/></p>
             </div>
         </c:forEach>
     </section>
 
-    <%-- 입력한 메시지는 POST /chat으로 전송되어 세션의 대화 내역에 추가된다. --%>
-    <form method="post" action="chat">
+    <%-- 선택한 모델과 입력 메시지는 POST /chat으로 전송되어 세션의 대화 내역에 추가된다. --%>
+    <form method="post" action="chat" id="chatForm">
+        <select name="model" aria-label="Model">
+            <c:forEach var="model" items="${availableModels}">
+                <c:choose>
+                    <c:when test="${model eq selectedModel}">
+                        <option value="${model}" selected><c:out value="${model}"/></option>
+                    </c:when>
+                    <c:otherwise>
+                        <option value="${model}"><c:out value="${model}"/></option>
+                    </c:otherwise>
+                </c:choose>
+            </c:forEach>
+        </select>
         <input type="text" name="message" autocomplete="off" />
         <button type="submit">Send</button>
     </form>
 </div>
+<script>
+    const chatForm = document.getElementById('chatForm');
+
+    chatForm.addEventListener('submit', () => {
+        requestAnimationFrame(() => {
+            const controls = chatForm.querySelectorAll('select, input, button');
+            controls.forEach((control) => {
+                control.disabled = true;
+            });
+        });
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!window.marked || !window.DOMPurify) {
+            return;
+        }
+
+        marked.setOptions({
+            breaks: true
+        });
+
+        document.querySelectorAll('.markdown').forEach((element) => {
+            const markdown = element.textContent;
+            element.innerHTML = DOMPurify.sanitize(marked.parse(markdown));
+        });
+    });
+</script>
 </body>
 </html>

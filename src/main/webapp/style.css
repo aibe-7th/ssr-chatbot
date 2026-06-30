@@ -56,9 +56,34 @@ body {
     margin: 0;
 }
 
+.text p,
+.text ul,
+.text ol,
+.text pre,
+.text blockquote {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+
+.text :last-child {
+    margin-bottom: 0;
+}
+
+.text pre,
+.text code {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
 form {
     display: flex;
     gap: 12px;
+}
+
+select {
+    padding: 10px;
+    border: 1px solid #bbb;
+    background: #fff;
 }
 
 input[type="text"] {
@@ -70,4 +95,10 @@ input[type="text"] {
 button {
     padding: 10px 16px;
     border: 1px solid #bbb;
+}
+
+@media (max-width: 640px) {
+    form {
+        flex-direction: column;
+    }
 }
