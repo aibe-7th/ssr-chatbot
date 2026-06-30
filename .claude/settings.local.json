@@ -15,7 +15,8 @@
       "Bash(git add *)",
       "Bash(git *)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(grep -E \"\\\\.class$\")"
+      "Bash(grep -E \"\\\\.class$\")",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
